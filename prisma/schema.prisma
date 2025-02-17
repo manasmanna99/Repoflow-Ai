@@ -12,6 +12,13 @@ datasource db {
     extensions = [vector]
 }
 
+model Post{
+    id String @id @default(cuid())
+    name String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
 model User{
     id         String   @id @default(cuid())
     createdAt  DateTime @default(now())
