@@ -46,18 +46,23 @@ Please summarise the following diff file:\n\n${diff}`,
 
 export async function summariseCode(doc: Document) {
   console.log("Get Summary", doc.metadata.source);
-  const code = doc.pageContent.slice(0, 10000);
-  const response = await model.generateContent([
-    `You are an intelligent senior engineer who specialises in onboarding junior engineers onto project`,
-    `You are onboarding a junior engineer onto a project and explaining to them the purpose of the ${doc.metadata.source} file
-    Here is the Code:
-    ---
-    ${code}
-    ---
-    Give the summary no more than 100 words of the code abhove`,
-  ]);
 
-  return response.response.text();
+  try {
+    const code = doc.pageContent.slice(0, 10000);
+    const response = await model.generateContent([
+      `You are an intelligent senior engineer who specialises in onboarding junior engineers onto project`,
+      `You are onboarding a junior engineer onto a project and explaining to them the purpose of the ${doc.metadata.source} file
+      Here is the Code:
+      ---
+      ${code}
+      ---
+      Give the summary no more than 100 words of the code abhove`,
+    ]);
+
+    return response.response.text();
+  } catch (error) {
+    return '';
+  }
 }
 
 export async function generateEmbedding(summary: string) {
