@@ -5,6 +5,7 @@ import {
   CreditCardIcon,
   HamIcon,
   LayoutDashboard,
+  Plus,
   Presentation,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,7 +19,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "~/components/ui/sidebar";
+import { Button } from "~/components/ui/button";
 import { cn } from "~/lib/utils";
 import { usePathname } from "next/navigation";
 
@@ -60,10 +63,16 @@ const Projects = [
 ];
 export function AppSidebar() {
   const pathname = usePathname();
-
+  const { open } = useSidebar();
   return (
     <Sidebar collapsible="icon" variant="floating">
-      <SidebarHeader>Logo</SidebarHeader>
+      <SidebarHeader>
+        <div className="flex items-center gap-2">
+          {open && (
+            <h1 className="font-bol -text-primary/80 text-xl">Repoflow</h1>
+          )}{" "}
+        </div>
+      </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Application</SidebarGroupLabel>
@@ -98,21 +107,35 @@ export function AppSidebar() {
                 return (
                   <SidebarMenuItem key={project.name}>
                     <SidebarMenuButton asChild>
-                        <div>
-                            <div className={cn(
-                                'p-2 rounded-md border-6 flex items-center justify-center text-sm bg-white text-primary',
-                                {
-                                    'bg-primary text-white': true
-                                }
-                            )}>
-                                {project.name[0] }
-                            </div>
-                            <span>{project.name}</span>
+                      <div>
+                        <div
+                          className={cn(
+                            "border-6 flex items-center justify-center rounded-md bg-white text-sm text-primary",
+                            {
+                              "bg-primary text-white": true,
+                            },
+                          )}
+                        >
+                          {project.name[0]}
                         </div>
+                        <span>{project.name}</span>
+                      </div>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 );
               })}
+
+              <div className="h-2"></div>
+              {open && (
+                <SidebarMenuItem>
+                  <Link href="/create">
+                    <Button size={"sm"} variant={"outline"} className="w-fit">
+                      <Plus />
+                      Create Project
+                    </Button>
+                  </Link>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

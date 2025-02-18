@@ -11,7 +11,7 @@ function SidebarLayout({children}: props) {
     <SidebarProvider>
       <AppSidebar/>
       <main className="m-2 w-full">
-        <div className="flex items-center gap-2 rounded-md border border-purple-400 bg-sidebar p-2 px-4 shadow">
+        <div className="flex items-center gap-2 rounded-md border border-purple-400 bg-sidebar-gradient p-2 px-4 shadow">
           {/* Sidebar */}
           <div className="ml-auto">
             <UserButton />
