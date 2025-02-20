@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unnecessary-type-assertion */
 /* eslint-disable @typescript-eslint/await-thenable */
 "use server";
 import { streamText } from "ai";
@@ -5,14 +6,6 @@ import { createStreamableValue } from "ai/rsc";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateEmbedding } from "~/lib/gemini";
 import { db } from "~/server/db";
-
-// Define a type for your query results
-type SourceCodeResult = {
-  fileName: string;
-  sourceCode: string;
-  summary: string;
-  Similarity: number;
-};
 
 const google = createGoogleGenerativeAI({
   apiKey: process.env.GEMINI_API_KEY,
@@ -24,14 +17,14 @@ export async function askQuestion(question: string, projectId: string) {
   const vectorQuery = `[${queryVector.join(",")}]`;
 
   // Cast the result to the defined type
-  const result = await db.$queryRaw<SourceCodeResult[]>`
+  const result = await db.$queryRaw`
     SELECT "fileName", "sourceCode", "summary", 1-("summaryEmbedding" <=> ${vectorQuery}::vector) AS Similarity
     FROM "SourceCodeEmbedding"
     WHERE 1-("summaryEmbedding" <=> ${vectorQuery}::vector) > .5
     AND "projectId"=${projectId}
     ORDER BY Similarity DESC
     LIMIT 10
-    `;
+    ` as{fileName: string, sourceCode: string, summary: string}[];
   let context = "";
 
   for (const doc of result) {
