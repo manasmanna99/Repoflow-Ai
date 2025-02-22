@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { Button } from "~/components/ui/button";
 import { useForm } from "react-hook-form";
 import { Input } from "~/components/ui/input";
 
@@ -35,6 +36,16 @@ function CreatePage() {
           <form onSubmit={handleSubmit(onSubmit)}>
             <Input {...register("projectName",{required:true})} 
             placeholder="Project Name"/>
+            <div className="h-2"></div>
+            <Input {...register("repoUrl",{required:true})} 
+            placeholder="Github URL"/>
+            <div className="h-2"></div>
+            <Input {...register("githubToken")} 
+            placeholder="Github Toke optional"/>
+            <div className="h-2"></div>
+            <Button>
+              Create Project
+            </Button>
           </form>
         </div>
       </div>
