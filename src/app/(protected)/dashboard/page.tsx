@@ -1,15 +1,10 @@
-'use client'
-import { useUser } from '@clerk/nextjs'
-import React from 'react'
+"use client";
+import React from "react";
+import { useUser } from "@clerk/nextjs";
 
 function DashboardPage() {
-  const {user} = useUser();
-  return (
-    <div>
-    <div>{user?.firstName}</div>
-    <div>{user?.lastName}</div>
-    </div>
-  )
+  const { user } = useUser();
+  return <div className="text-black">{user?.firstName}</div>;
 }
 
-export default DashboardPage
+export default DashboardPage;
