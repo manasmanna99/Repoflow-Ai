@@ -23,6 +23,7 @@ import { cn } from "~/lib/utils";
 import { usePathname } from "next/navigation";
 import { Button } from "~/components/ui/button";
 import Image from "next/image";
+import useProject from "~/hooks/use-project";
 
 const links = [
   {
@@ -42,37 +43,33 @@ const links = [
   },
 ];
 
-const projects = [
-  {
-    name: "Project 1",
-  },
-  {
-    name: "Project 2",
-  },
-  {
-    name: "Project 3",
-  },
-  {
-    name: "Project 4",
-  },
-];
-
 export default function AppSidebar() {
   const pathname = usePathname();
   const { open } = useSidebar();
+  const { projects, projectId, setProjectId } = useProject();
   return (
-    <Sidebar collapsible="icon" variant="floating">
-      <SidebarHeader>
-        <div className="flex items-center gap-2">
-          <Image src="/logo.svg" alt="logo" width={40} height={40} />
+    <Sidebar
+      collapsible="icon"
+      variant="floating"
+      className="border-r border-border/5 bg-white dark:border-border/20 dark:bg-card"
+    >
+      <SidebarHeader className="border-b border-border/5 dark:border-border/20 dark:bg-card">
+        <div className="flex items-center gap-2 p-1">
+          <div className="rounded-md bg-white/50 p-1 dark:bg-card/50">
+            <Image src="/logo.svg" alt="logo" width={36} height={36} />
+          </div>
           {open && (
-            <h1 className="text-xl font-bold text-primary/80">RepoFlow Ai</h1>
+            <h1 className="text-xl font-bold text-primary/80 dark:text-primary">
+              RepoFlow Ai
+            </h1>
           )}
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="dark:bg-card">
         <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
+          <SidebarGroupLabel className="dark:text-muted-foreground">
+            Application
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {links.map((item) => {
@@ -83,9 +80,10 @@ export default function AppSidebar() {
                         href={item.url}
                         className={cn(
                           {
-                            "!bg-primary !text-white": pathname === item.url,
+                            "!bg-primary !text-primary-foreground":
+                              pathname === item.url,
                           },
-                          "list-none",
+                          "list-none transition-colors dark:text-muted-foreground dark:hover:bg-primary/10 dark:hover:text-primary",
                         )}
                       >
                         {item.icon}
@@ -99,19 +97,25 @@ export default function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup>
-          <SidebarGroupLabel>Your Projects</SidebarGroupLabel>
+          <SidebarGroupLabel className="dark:text-muted-foreground">
+            Your Projects
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {projects.map((project) => {
+              {projects?.map((project) => {
                 return (
                   <SidebarMenuItem key={project.name}>
                     <SidebarMenuButton asChild>
-                      <div className="flex items-center gap-2">
+                      <div
+                        onClick={() => setProjectId(project.id)}
+                        className="flex cursor-pointer items-center gap-2 transition-colors dark:text-muted-foreground dark:hover:text-primary"
+                      >
                         <div
                           className={cn(
-                            "flex items-center justify-center rounded-sm border bg-white text-sm text-primary",
+                            "flex items-center justify-center rounded-sm border-0 bg-white/80 text-sm text-primary dark:bg-card/50",
                             {
-                              "bg-primary text-white": true,
+                              "bg-primary text-primary-foreground dark:bg-primary dark:text-primary-foreground":
+                                projectId === project.id,
                               "size-6": open,
                               "size-8": !open,
                             },
@@ -132,7 +136,7 @@ export default function AppSidebar() {
                     size="sm"
                     variant="outline"
                     className={cn(
-                      "w-full",
+                      "w-full border-border/5 transition-colors dark:border-border/20 dark:bg-card/50 dark:text-muted-foreground dark:hover:bg-primary/10 dark:hover:text-primary",
                       !open && "flex h-8 w-8 items-center justify-center p-0",
                     )}
                   >

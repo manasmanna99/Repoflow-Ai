@@ -2,6 +2,7 @@ import { UserButton } from "@clerk/nextjs";
 import React from "react";
 import { SidebarProvider } from "~/components/ui/sidebar";
 import AppSidebar from "./app-sidebar";
+import { ThemeToggle } from "~/components/theme-toggle";
 
 type props = {
   children: React.ReactNode;
@@ -12,14 +13,16 @@ function SidebarLayout({ children }: props) {
     <SidebarProvider>
       <AppSidebar />
       <main className="m-2 w-full">
-        <div className="flex items-center gap-2 rounded-md border border-sidebar-border bg-sidebar p-2 px-4 shadow">
+        <div className="flex items-center gap-2 rounded-md border border-border bg-card/50 p-2 px-4 shadow dark:border-border/20 dark:bg-card">
           {/* <Searchbar/> */}
-          <div className="ml-auto"></div>
-          <UserButton />
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+            <UserButton />
+          </div>
         </div>
         <div className="h-4"></div>
         {/* main content */}
-        <div className="h-[calc(100vh-6rem)] overflow-y-scroll rounded-md border border-sidebar-border bg-sidebar p-4 shadow">
+        <div className="h-[calc(100vh-6rem)] overflow-y-scroll rounded-md border border-border bg-card p-4 shadow dark:border-border/20 dark:bg-card">
           {children}
         </div>
       </main>

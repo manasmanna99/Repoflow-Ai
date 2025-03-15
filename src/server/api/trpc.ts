@@ -50,7 +50,7 @@ const t = initTRPC.context<typeof createTRPCContext>().create({
     };
   },
 });
-export const isAuthenticated = t.middleware(async ({ next, ctx }) => {
+export const isAuthenticated = t.middleware(async ({ next, ctx }) => {  
   const user = await auth();
 
   if (!user) {

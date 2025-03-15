@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { ArrowRight, Github, Key, LinkIcon } from "lucide-react";
+import { ArrowRight, Github, Key, LinkIcon, Loader2 } from "lucide-react";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -17,6 +17,9 @@ import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
 import { Switch } from "~/components/ui/switch";
 import { useForm } from "react-hook-form";
+import { api } from "~/trpc/react";
+import { toast } from "sonner";
+import useRefetch from "~/hooks/use-refetch";
 
 type FormInput = {
   repoUrl: string;
@@ -27,9 +30,27 @@ type FormInput = {
 export default function CreatePage() {
   const [showToken, setShowToken] = useState(false);
   const { register, handleSubmit, reset } = useForm<FormInput>();
+  const createProject = api.project.createProject.useMutation();
+  const refetch = useRefetch();
 
   function onSubmit(data: FormInput) {
-    window.alert(JSON.stringify(data));
+    createProject.mutate(
+      {
+        githubUrl: data.repoUrl,
+        name: data.projectName,
+        githubToken: data.githubToken,
+      },
+      {
+        onSuccess: () => {
+          toast.success("Project created successfully");
+          refetch();
+          reset();
+        },
+        onError: (error) => {
+          toast.error(error.message);
+        },
+      },
+    );
     return true;
   }
 
@@ -156,9 +177,19 @@ export default function CreatePage() {
             </div>
 
             <CardFooter className="flex flex-col items-stretch gap-4 border-t border-border/30 px-0 pt-4">
-              <Button type="submit" className="group w-full gap-2">
-                Check Credits
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <Button
+                type="submit"
+                className="group w-full gap-2"
+                disabled={createProject.isPending}
+              >
+                {createProject.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Check Credits{" "}
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </Button>
 
               <div className="text-center text-xs text-muted-foreground">
