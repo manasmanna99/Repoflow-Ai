@@ -12,18 +12,17 @@ datasource db {
     extensions = [vector]
 }
 
-model Question{
-    id String @id @default(cuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    question String
-    answer String
+model Question {
+    id              String   @id @default(cuid())
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+    question        String
+    answer          String
     filesReferences Json?
-    projectId String
-    project Project @relation(fields: [projectId], references: [id])
-    userId String
-    user User @relation(fields: [userId], references: [id])
-    
+    projectId       String
+    project         Project  @relation(fields: [projectId], references: [id])
+    userId          String
+    user            User     @relation(fields: [userId], references: [id])
 }
 
 model User {
@@ -62,6 +61,7 @@ model UserToProject {
     updatedAt DateTime @updatedAt
     userId    String
     projectId String
+    role      String   @default("member")
     user      User     @relation(fields: [userId], references: [id])
     project   Project  @relation(fields: [projectId], references: [id])
 
@@ -69,17 +69,17 @@ model UserToProject {
 }
 
 model Commit {
-    id        String   @id @default(cuid())
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    projectId String
-    project   Project  @relation(fields: [projectId], references: [id])
-    commitMessage String
-    commitHash String
-    commitAuthorName String
+    id                 String   @id @default(cuid())
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
+    projectId          String
+    project            Project  @relation(fields: [projectId], references: [id])
+    commitMessage      String
+    commitHash         String
+    commitAuthorName   String
     commitAuthorAvatar String
-    commitDate DateTime
-    summary String
+    commitDate         DateTime
+    summary            String
 }
 
 model SourceCodeEmbedding {

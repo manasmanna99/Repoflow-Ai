@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Image from "next/image";
 import { ArrowRight, Github, Key, LinkIcon, Loader2 } from "lucide-react";
-
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -20,6 +19,9 @@ import { useForm } from "react-hook-form";
 import { api } from "~/trpc/react";
 import { toast } from "sonner";
 import useRefetch from "~/hooks/use-refetch";
+import { Progress } from "~/components/ui/progress";
+import { useRouter } from "next/navigation";
+import useProject from "~/hooks/use-project";
 
 type FormInput = {
   repoUrl: string;
@@ -27,31 +29,74 @@ type FormInput = {
   githubToken?: string;
 };
 
+type ProcessStep = {
+  title: string;
+  description: string;
+  progress: number;
+};
+
+const processSteps: ProcessStep[] = [
+  {
+    title: "Validating Repository",
+    description: "Checking repository access and structure...",
+    progress: 25,
+  },
+  {
+    title: "Setting Up Project",
+    description: "Creating project configuration...",
+    progress: 50,
+  },
+  {
+    title: "Analyzing Codebase",
+    description: "Scanning repository contents...",
+    progress: 75,
+  },
+  {
+    title: "Finalizing Setup",
+    description: "Completing project initialization...",
+    progress: 100,
+  },
+];
+
 export default function CreatePage() {
   const [showToken, setShowToken] = useState(false);
+  const [currentStep, setCurrentStep] = useState<number>(-1);
   const { register, handleSubmit, reset } = useForm<FormInput>();
   const createProject = api.project.createProject.useMutation();
   const refetch = useRefetch();
+  const router = useRouter();
+  const { setProjectId } = useProject();
 
-  function onSubmit(data: FormInput) {
-    createProject.mutate(
-      {
+  // Get current step data safely
+  const currentStepData =
+    currentStep >= 0 && currentStep < processSteps.length
+      ? processSteps[currentStep]
+      : null;
+
+  async function onSubmit(data: FormInput) {
+    try {
+      // Start processing animation
+      for (let i = 0; i < processSteps.length; i++) {
+        setCurrentStep(i);
+        // Simulate processing time for each step
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+
+      const result = await createProject.mutateAsync({
         githubUrl: data.repoUrl,
         name: data.projectName,
         githubToken: data.githubToken,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Project created successfully");
-          refetch();
-          reset();
-        },
-        onError: (error) => {
-          toast.error(error.message);
-        },
-      },
-    );
-    return true;
+      });
+
+      toast.success("Project created successfully");
+      setProjectId(result.id);
+      await refetch();
+      reset();
+      router.push("/dashboard");
+    } catch (error: any) {
+      setCurrentStep(-1);
+      toast.error(error.message);
+    }
   }
 
   return (
@@ -60,24 +105,53 @@ export default function CreatePage() {
         <div className="relative flex flex-col items-center justify-center bg-primary/5 p-6 md:p-10">
           <div className="absolute left-0 top-0 h-full w-full bg-[radial-gradient(circle_at_30%_20%,rgba(var(--primary)/0.1)_0%,transparent_60%)]"></div>
           <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="relative mb-8 h-48 w-48 md:h-64 md:w-64">
-              <Image
-                src="/logo.svg"
-                alt="Developer illustration"
-                width={256}
-                height={256}
-                className="object-contain"
-              />
-              <div className="absolute -bottom-4 -right-4 h-32 w-32 rounded-full bg-primary/10 blur-2xl"></div>
-              <div className="absolute -left-4 -top-4 h-24 w-24 rounded-full bg-primary/10 blur-xl"></div>
-            </div>
-            <h2 className="mb-2 text-xl font-bold md:text-2xl">
-              Connect Your Code
-            </h2>
-            <p className="max-w-xs text-muted-foreground">
-              Link your GitHub repository to unlock powerful development tools
-              and seamless deployment.
-            </p>
+            {currentStep === -1 ? (
+              <>
+                <div className="relative mb-8 h-48 w-48 md:h-64 md:w-64">
+                  <Image
+                    src="/logo.svg"
+                    alt="Developer illustration"
+                    width={256}
+                    height={256}
+                    className="object-contain"
+                  />
+                  <div className="absolute -bottom-4 -right-4 h-32 w-32 rounded-full bg-primary/10 blur-2xl"></div>
+                  <div className="absolute -left-4 -top-4 h-24 w-24 rounded-full bg-primary/10 blur-xl"></div>
+                </div>
+                <h2 className="mb-2 text-xl font-bold md:text-2xl">
+                  Connect Your Code
+                </h2>
+                <p className="max-w-xs text-muted-foreground">
+                  Link your GitHub repository to unlock powerful development
+                  tools and seamless deployment.
+                </p>
+              </>
+            ) : (
+              <div className="flex flex-col items-center space-y-6">
+                <div className="relative h-48 w-48">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="h-32 w-32 animate-spin rounded-full border-4 border-primary/20 border-t-primary"></div>
+                  </div>
+                </div>
+                {currentStepData && (
+                  <div className="space-y-4 text-center">
+                    <h3 className="text-xl font-semibold">
+                      {currentStepData.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {currentStepData.description}
+                    </p>
+                    <Progress
+                      value={currentStepData.progress}
+                      className="w-64"
+                    />
+                    <p className="text-sm text-primary">
+                      {currentStepData.progress}% Complete
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="mt-8 grid grid-cols-4 gap-2">
               {[...Array(8)].map((_, i) => (
@@ -121,6 +195,7 @@ export default function CreatePage() {
                     className="bg-background/50"
                     {...register("projectName", { required: true })}
                     required
+                    disabled={createProject.isPending}
                   />
                 </div>
 
@@ -136,6 +211,7 @@ export default function CreatePage() {
                     {...register("repoUrl", { required: true })}
                     type="url"
                     required
+                    disabled={createProject.isPending}
                   />
                 </div>
 
@@ -152,6 +228,7 @@ export default function CreatePage() {
                       id="show-token"
                       checked={showToken}
                       onCheckedChange={setShowToken}
+                      disabled={createProject.isPending}
                     />
                   </div>
 
@@ -165,6 +242,7 @@ export default function CreatePage() {
                         className="bg-background/50"
                         {...register("githubToken", { required: showToken })}
                         required={showToken}
+                        disabled={createProject.isPending}
                       />
                       <p className="mt-1 text-xs text-muted-foreground">
                         Tokens with 'repo' scope are required for private
@@ -186,7 +264,7 @@ export default function CreatePage() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    Check Credits{" "}
+                    Create Project{" "}
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                   </>
                 )}

@@ -94,3 +94,21 @@
   background-color: #f5f7fa !important;
   color: black !important;
 }
+
+/* Light Mode */
+.wmde-markdown {
+  --color-canvas-default: #ffffff !important; /* Set background to white */
+  --color-fg-default: #333333 !important; /* Ensure text is dark */
+  background-color: var(--color-canvas-default) !important;
+  color: var(--color-fg-default) !important;
+}
+
+/* Dark Mode */
+.dark .wmde-markdown {
+  --color-canvas-default: #1e1e1e !important; /* Dark background */
+  --color-fg-default: #f5f5f5 !important; /* Light text */
+}
+
+.wmde-markdown {
+  @apply bg-white text-black dark:bg-gray-900 dark:text-white;
+}

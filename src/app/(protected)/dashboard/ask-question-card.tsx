@@ -27,6 +27,7 @@ import { ScrollArea } from "~/components/ui/scroll-area";
 import { CodeReferences } from "./code-references";
 import { api } from "~/trpc/react";
 import { toast } from "sonner";
+import useRefetch from "~/hooks/use-refetch";
 
 export const AskQuestionCard = () => {
   const { project } = useProject();
@@ -78,6 +79,7 @@ export const AskQuestionCard = () => {
       {
         onSuccess: () => {
           toast.success("Answer saved");
+          refetch();
         },
         onError: () => {
           toast.error("Error saving answer");
@@ -85,6 +87,7 @@ export const AskQuestionCard = () => {
       },
     );
   };
+  const refetch=useRefetch();
 
   return (
     <>
