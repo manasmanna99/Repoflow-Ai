@@ -62,4 +62,24 @@ export const projectRouter = createTRPCRouter({
         throw new Error("Failed to fetch commits");
       }
     }),
+  saveAnswer: protectedProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        question: z.string(),
+        answer: z.string(),
+        filesReferences: z.any(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.question.create({
+        data: {
+          projectId: input.projectId,
+          question: input.question,
+          answer: input.answer,
+          filesReferences: input.filesReferences,
+          userId: ctx.user.userId!,
+        },
+      });
+    }),
 });

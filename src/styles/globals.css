@@ -81,3 +81,16 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+/* Fix for light mode markdown code blocks */
+.wmde-markdown pre, 
+.wmde-markdown code {
+    background-color: #f5f7fa !important; /* Light gray for better visibility */
+    color: #333 !important; /* Darker text for contrast */
+}
+
+.custom-markdown pre {
+  background-color: #f5f7fa !important;
+  color: black !important;
+}

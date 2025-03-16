@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   ExternalLink,
   Github,
@@ -19,14 +18,11 @@ import {
   CardHeader,
   CardTitle,
 } from "~/components/ui/card";
-import { Separator } from "~/components/ui/separator";
-import { Textarea } from "~/components/ui/textarea";
 import useProject from "~/hooks/use-project";
 import CommitLog from "./commit-log";
-
+import { AskQuestionCard } from "./ask-question-card";
 
 export default function Dashboard() {
-  const [question, setQuestion] = useState("");
   const project = useProject();
 
   return (
@@ -70,31 +66,7 @@ export default function Dashboard() {
       <div className="container grid gap-6 px-4 py-6 md:grid-cols-[1fr,320px]">
         <div className="space-y-6">
           {/* AI Chat Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <MessageSquare className="h-5 w-5" />
-                Ask a question
-              </CardTitle>
-              <CardDescription>
-                Dionysus has knowledge of the codebase
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <Textarea
-                  placeholder="Which file should I edit to change the home page?"
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  className="min-h-[100px] resize-none"
-                />
-                <Button className="gap-2">
-                  Ask Dionysus!
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <AskQuestionCard />
 
           {/* Activity Feed */}
           <CommitLog />
