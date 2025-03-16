@@ -17,14 +17,14 @@ export async function askQuestion(question: string, projectId: string) {
   const vectorQuery = `[${queryVector.join(",")}]`;
 
   // Cast the result to the defined type
-  const result = await db.$queryRaw`
+  const result = (await db.$queryRaw`
     SELECT "fileName", "sourceCode", "summary", 1-("summaryEmbedding" <=> ${vectorQuery}::vector) AS Similarity
     FROM "SourceCodeEmbedding"
     WHERE 1-("summaryEmbedding" <=> ${vectorQuery}::vector) > .5
     AND "projectId"=${projectId}
     ORDER BY Similarity DESC
     LIMIT 10
-    ` as{fileName: string, sourceCode: string, summary: string}[];
+    `) as { fileName: string; sourceCode: string; summary: string }[];
   let context = "";
 
   for (const doc of result) {
@@ -71,7 +71,7 @@ export async function askQuestion(question: string, projectId: string) {
   })();
 
   return {
-    output: stream,
+    output: stream.value,
     filesReferences: result,
   };
 }

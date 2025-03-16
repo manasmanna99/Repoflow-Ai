@@ -1,40 +1,19 @@
 "use client";
 
+import React, { Suspense, useEffect, useState } from "react";
 import {
   ExternalLink,
   Github,
-  History,
-  Link,
-  MessageSquare,
-  Send,
-  GitPullRequest,
-  GitMerge,
-  Users,
-  RefreshCw,
-  Loader2,
   Archive,
 } from "lucide-react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Button } from "~/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "~/components/ui/card";
-import { Skeleton } from "~/components/ui/skeleton";
 import useProject from "~/hooks/use-project";
 import CommitLog from "./commit-log";
 import { AskQuestionCard } from "./ask-question-card";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { ArchiveButton } from "./archive-button";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function Dashboard() {
+const DashboardContent = () => {
   const { project, projectId, setProjectId, projects } = useProject();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -108,5 +87,13 @@ export default function Dashboard() {
         </div>
       </div>
     </div>
+  );
+};
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <DashboardContent />
+    </Suspense>
   );
 }
