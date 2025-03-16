@@ -1,8 +1,10 @@
-import { UserButton } from "@clerk/nextjs";
+"use client";
+
 import React from "react";
 import { SidebarProvider } from "~/components/ui/sidebar";
 import AppSidebar from "./app-sidebar";
 import { ThemeToggle } from "~/components/theme-toggle";
+import { UserButtonWrapper } from "~/components/user-button-wrapper";
 
 type props = {
   children: React.ReactNode;
@@ -17,7 +19,7 @@ function SidebarLayout({ children }: props) {
           {/* <Searchbar/> */}
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />
-            <UserButton />
+            <UserButtonWrapper />
           </div>
         </div>
         <div className="h-4"></div>
@@ -29,5 +31,4 @@ function SidebarLayout({ children }: props) {
     </SidebarProvider>
   );
 }
-
 export default SidebarLayout;
