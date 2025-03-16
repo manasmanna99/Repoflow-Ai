@@ -61,7 +61,6 @@ model UserToProject {
     updatedAt DateTime @updatedAt
     userId    String
     projectId String
-    role      String   @default("member")
     user      User     @relation(fields: [userId], references: [id])
     project   Project  @relation(fields: [projectId], references: [id])
 

@@ -20,8 +20,7 @@ export const projectRouter = createTRPCRouter({
           userToProjects: {
             create: {
               userId: ctx.user.userId!,
-              role: "owner",
-            } as any,
+            },
           },
         },
       });
