@@ -41,12 +41,20 @@ model User {
     questionsAsked Question[]
 }
 
+enum ProjectStatus {
+    pending
+    indexing
+    completed
+    failed
+}
+
 model Project {
     id                   String                @id @default(cuid())
     createdAt            DateTime              @default(now())
     updatedAt            DateTime              @updatedAt
     name                 String
     githubUrl            String
+    status               ProjectStatus         @default(pending)
     deletedAt            DateTime?
     userToProjects       UserToProject[]
     commits              Commit[]

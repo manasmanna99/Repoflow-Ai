@@ -1,14 +1,32 @@
 import React, { useEffect } from "react";
 import { api } from "~/trpc/react";
 import { useLocalStorage } from "usehooks-ts";
+import type { Project } from "~/types/project";
 
 export default function useProject() {
   const [projectId, setProjectId] = useLocalStorage<string>(
     "repoflow-projectId",
     "",
   );
-  const { data: projects, isLoading } = api.project.getProjects.useQuery();
-  const project = projects?.find((project) => project.id === projectId);
+  const {
+    data: projects,
+    isLoading,
+    refetch,
+  } = api.project.getProjects.useQuery();
+  const project = projects?.find((project) => project.id === projectId) as
+    | Project
+    | undefined;
+
+  // Poll for project status changes if project is being indexed
+  useEffect(() => {
+    if (!project || project.status !== "indexing") return;
+
+    const pollInterval = setInterval(() => {
+      void refetch();
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [project, refetch]);
 
   // Debug logging
   useEffect(() => {
@@ -41,5 +59,6 @@ export default function useProject() {
     projectId,
     setProjectId,
     isLoading,
+    refetch,
   };
 }

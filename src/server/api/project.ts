@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure, publicProcedure } from "./trpc";
 import { poolCommits } from "~/lib/github";
-import { indexGithubRepo } from "~/lib/github-loader";
+import { loadGithubRepo, generateEmbeddings } from "~/lib/github-loader";
 
 export const projectRouter = createTRPCRouter({
   createProject: protectedProcedure
@@ -13,10 +13,12 @@ export const projectRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // Create project with initial indexing status
       const project = await ctx.db.project.create({
         data: {
           githubUrl: input.githubUrl,
           name: input.name,
+          status: "indexing" as const,
           userToProjects: {
             create: {
               userId: ctx.user.userId!,
@@ -24,8 +26,64 @@ export const projectRouter = createTRPCRouter({
           },
         },
       });
-      await indexGithubRepo(project.id, input.githubUrl, input.githubToken);
-      await poolCommits(project.id);
+
+      // Start indexing in the background
+      void (async () => {
+        try {
+          // Load repository files
+          const docs = await loadGithubRepo(input.githubUrl, input.githubToken);
+
+          // Generate embeddings in smaller chunks
+          const allEmbeddings = await generateEmbeddings(docs);
+          const validEmbeddings = allEmbeddings.filter((e) => e !== null);
+
+          // Save to database in smaller chunks
+          const SAVE_BATCH_SIZE = 3;
+          for (let i = 0; i < validEmbeddings.length; i += SAVE_BATCH_SIZE) {
+            const batch = validEmbeddings.slice(i, i + SAVE_BATCH_SIZE);
+
+            await Promise.all(
+              batch.map(async (embedding) => {
+                try {
+                  const sourceCodeEmbedding =
+                    await ctx.db.sourceCodeEmbedding.create({
+                      data: {
+                        sourceCode: embedding.sourceCode,
+                        fileName: embedding.fileName,
+                        summary: embedding.summary,
+                        projectId: project.id,
+                      },
+                    });
+
+                  await ctx.db
+                    .$executeRaw`UPDATE "SourceCodeEmbedding" SET "summaryEmbedding" = ${embedding.embedding}::vector WHERE "id" = ${sourceCodeEmbedding.id}`;
+                } catch (error) {
+                  console.error(`Error saving ${embedding.fileName}:`, error);
+                }
+              }),
+            );
+
+            // Small delay between chunks to prevent rate limiting
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+          }
+
+          // Update project status to completed
+          await ctx.db.project.update({
+            where: { id: project.id },
+            data: { status: "completed" as const },
+          });
+
+          // Start commit pooling
+          await poolCommits(project.id);
+        } catch (error) {
+          console.error("Indexing failed:", error);
+          await ctx.db.project.update({
+            where: { id: project.id },
+            data: { status: "failed" },
+          });
+        }
+      })();
+
       return project;
     }),
   getProjects: protectedProcedure.query(async ({ ctx }) => {
