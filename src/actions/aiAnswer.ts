@@ -75,7 +75,3 @@ export async function askQuestion(question: string, projectId: string) {
     filesReferences: result,
   };
 }
-
-export const config = {
-  runtime: "edge", // Edge functions handle streaming better
-};
