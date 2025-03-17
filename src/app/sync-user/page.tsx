@@ -1,35 +1,41 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { notFound, redirect } from "next/navigation";
-import React from "react";
+import { auth } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/clerk-sdk-node";
+import { redirect } from "next/navigation";
 import { db } from "~/server/db";
 
-const SyncUser = async () => {
+export default async function SyncUser() {
   const { userId } = await auth();
+  
   if (!userId) {
-    return notFound();
+    return redirect("/sign-in");
   }
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  if (!user.emailAddresses[0]?.emailAddress) {
-    return notFound();
+
+  // Get user data from Clerk
+  const user = await clerkClient.users.getUser(userId);
+  const primaryEmail = user.emailAddresses[0]?.emailAddress;
+
+  if (!primaryEmail) {
+    return redirect("/sign-in");
   }
+
+  // Create or update user in database with Clerk data
   await db.user.upsert({
-    where: {
-      emailAddress: user.emailAddresses[0]?.emailAddress ?? "",
-    },
-    update: {
-      firstName: user.firstName,
-      lastName: user.lastName,
+    where: { id: userId },
+    create: {
+      id: userId,
+      emailAddress: primaryEmail,
+      firstName: user.firstName ?? "",
+      lastName: user.lastName ?? "",
       imageUrl: user.imageUrl,
     },
-    create: {
-      id: userId ?? "",
-      emailAddress: user.emailAddresses[0]?.emailAddress ?? "",
-      firstName: user.firstName,
-      lastName: user.lastName,
-      imageUrl: user.imageUrl ?? undefined,
+    update: {
+      emailAddress: primaryEmail,
+      firstName: user.firstName ?? "",
+      lastName: user.lastName ?? "",
+      imageUrl: user.imageUrl,
     },
   });
+
+  // Redirect to dashboard after sync
   return redirect("/dashboard");
-};
-export default SyncUser;
+}
