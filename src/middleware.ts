@@ -1,36 +1,50 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const isPublicRoute = (path: string) => {
   const publicPaths = [
-    "/", // Public homepage
+    "/",
     "/sign-in(.*)",
     "/sign-up(.*)",
     "/api/razorpay/webhook",
   ];
   return publicPaths.some((pattern) => {
-    const regex = new RegExp(`^${pattern.replace("*", ".*")}$`);
+    const regex = new RegExp(`^${pattern.replace(/\*/g, ".*")}$`); // Fix wildcard replacement
     return regex.test(path);
   });
 };
 
 export default clerkMiddleware(async (authFn, req) => {
-  const auth = await authFn(); // Await authentication object
-  // ✅ Redirect unauthenticated users from private pages to /sign-in
-  if (!auth.userId && !isPublicRoute(req.nextUrl.pathname)) {
-    return auth.redirectToSignIn();
+  const { pathname, searchParams } = req.nextUrl;
+  const auth = await authFn();
+  const { userId } = auth;
+
+  // Prevent infinite redirect loops by ensuring we don't redirect to the same page
+  const redirectUrl = searchParams.get("redirect_url");
+  if (redirectUrl && new URL(redirectUrl).pathname === pathname) {
+    return NextResponse.next();
   }
-  // ✅ Redirect authenticated users from public pages to /create
-  if (auth.userId && isPublicRoute(req.nextUrl.pathname)) {
+
+  // Redirect unauthenticated users to /sign-in
+  if (!userId && !isPublicRoute(pathname)) {
+    const signInUrl = new URL("/sign-in", req.nextUrl.origin);
+    if (!searchParams.has("redirect_url")) {
+      signInUrl.searchParams.set("redirect_url", req.nextUrl.href);
+    }
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // Redirect authenticated users from public pages to /create
+  if (userId && isPublicRoute(pathname)) {
     return NextResponse.redirect(new URL("/create", req.nextUrl.origin));
   }
+
+  return NextResponse.next();
 });
 
 export const config = {
   matcher: [
-    // Skip Next.js internals and static files
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
+    "/((?!_next/static|_next/image|favicon\\.ico|robots\\.txt|sitemap\\.xml|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
 };
