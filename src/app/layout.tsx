@@ -2,10 +2,14 @@ import "~/styles/globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
+import { Inter } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
-import { Toaster } from "sonner";
+import { Toaster } from "~/components/ui/sonner";
 import { ThemeProvider } from "~/components/theme-provider";
+import { RazorpayScript } from "~/components/RazorpayScript";
+
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "RepoFlow AI - Analyze and understand your codebase with AI",
@@ -21,6 +25,9 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en" className={GeistSans.variable} suppressHydrationWarning>
+        <head>
+          <RazorpayScript />
+        </head>
         <body>
           <ThemeProvider
             attribute="class"

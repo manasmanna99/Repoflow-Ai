@@ -3,6 +3,15 @@ import { createTRPCRouter, protectedProcedure, publicProcedure } from "./trpc";
 import { poolCommits } from "~/lib/github";
 import { loadGithubRepo, generateEmbeddings } from "~/lib/github-loader";
 
+// Calculate credits based on repository size
+function calculateCredits(fileCount: number): number {
+  if (fileCount <= 10) return 1;
+  if (fileCount <= 50) return 10;
+  if (fileCount <= 100) return 25;
+  if (fileCount <= 200) return 50;
+  return 100; // For very large repositories
+}
+
 export const projectRouter = createTRPCRouter({
   createProject: protectedProcedure
     .input(
@@ -13,6 +22,22 @@ export const projectRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // First, get repository info to calculate required credits
+      const repoInfo = await loadGithubRepo(input.githubUrl, input.githubToken);
+      const requiredCredits = calculateCredits(repoInfo.length);
+
+      // Check user credits
+      const user = await ctx.db.user.findUnique({
+        where: { id: ctx.user.userId! },
+        select: { credits: true },
+      });
+
+      if (!user || user.credits < requiredCredits) {
+        throw new Error(
+          `Insufficient credits. This project requires ${requiredCredits} credits. Please purchase more credits to create this project.`
+        );
+      }
+
       // Create project with initial indexing status
       const project = await ctx.db.project.create({
         data: {
@@ -27,14 +52,21 @@ export const projectRouter = createTRPCRouter({
         },
       });
 
+      // Deduct credits
+      await ctx.db.user.update({
+        where: { id: ctx.user.userId! },
+        data: {
+          credits: {
+            decrement: requiredCredits,
+          },
+        },
+      });
+
       // Start indexing in the background
       void (async () => {
         try {
-          // Load repository files
-          const docs = await loadGithubRepo(input.githubUrl, input.githubToken);
-
           // Generate embeddings in smaller chunks
-          const allEmbeddings = await generateEmbeddings(docs);
+          const allEmbeddings = await generateEmbeddings(repoInfo);
           const validEmbeddings = allEmbeddings.filter((e) => e !== null);
 
           // Save to database in smaller chunks

@@ -51,9 +51,9 @@ export default function AppSidebar() {
     <Sidebar
       collapsible="icon"
       variant="floating"
-      className="border-r border-border/5 bg-white dark:border-border/20 dark:bg-card"
+      className="border-r border-border/5 bg-white dark:border-border/10 dark:bg-card"
     >
-      <SidebarHeader className="border-b border-border/5 dark:border-border/20 dark:bg-card">
+      <SidebarHeader className="border-b border-border/5 dark:border-border/10 dark:bg-card">
         <div className="flex items-center gap-2 p-1">
           <div className="rounded-md bg-white/50 p-1 dark:bg-card/50">
             <Image src="/logo.svg" alt="logo" width={36} height={36} />

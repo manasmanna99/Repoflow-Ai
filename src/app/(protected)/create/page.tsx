@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
-import { ArrowRight, Github, Key, LinkIcon, Loader2 } from "lucide-react";
+import { ArrowRight, Github, Key, LinkIcon, Loader2, Coins } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
   Card,
@@ -22,7 +22,7 @@ import useRefetch from "~/hooks/use-refetch";
 import { Progress } from "~/components/ui/progress";
 import { useRouter } from "next/navigation";
 import useProject from "~/hooks/use-project";
-
+import { CreditPurchaseModal } from "~/components/CreditPurchaseModal";
 type FormInput = {
   repoUrl: string;
   projectName: string;
@@ -61,11 +61,39 @@ const processSteps: ProcessStep[] = [
 export default function CreatePage() {
   const [showToken, setShowToken] = useState(false);
   const [currentStep, setCurrentStep] = useState<number>(-1);
-  const { register, handleSubmit, reset } = useForm<FormInput>();
+  const [showCreditModal, setShowCreditModal] = useState(false);
+  const [requiredCredits, setRequiredCredits] = useState<number | null>(null);
+  const { register, handleSubmit, reset, watch } = useForm<FormInput>();
   const createProject = api.project.createProject.useMutation();
+  const { data: userCredits } = api.user.getCredits.useQuery();
   const refetch = useRefetch();
   const router = useRouter();
   const { setProjectId } = useProject();
+
+  // Watch for repo URL changes
+  const repoUrl = watch("repoUrl");
+
+  // Calculate required credits when repo URL changes
+  useEffect(() => {
+    if (repoUrl) {
+      const calculateCredits = async () => {
+        try {
+          const response = await fetch("/api/calculate-credits", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ repoUrl }),
+          });
+          const data = await response.json();
+          setRequiredCredits(data.requiredCredits);
+        } catch (error) {
+          console.error("Error calculating credits:", error);
+        }
+      };
+      void calculateCredits();
+    }
+  }, [repoUrl]);
 
   // Get current step data safely
   const currentStepData =
@@ -75,6 +103,11 @@ export default function CreatePage() {
 
   async function onSubmit(data: FormInput) {
     try {
+      if (!userCredits || userCredits.credits < (requiredCredits ?? 1)) {
+        setShowCreditModal(true);
+        return;
+      }
+
       // Start processing animation
       for (let i = 0; i < processSteps.length; i++) {
         setCurrentStep(i);
@@ -95,7 +128,11 @@ export default function CreatePage() {
       router.push("/dashboard");
     } catch (error: any) {
       setCurrentStep(-1);
-      toast.error(error.message);
+      if (error.message.includes("Insufficient credits")) {
+        setShowCreditModal(true);
+      } else {
+        toast.error(error.message);
+      }
     }
   }
 
@@ -125,6 +162,19 @@ export default function CreatePage() {
                   Link your GitHub repository to unlock powerful development
                   tools and seamless deployment.
                 </p>
+                <div className="mt-4 flex flex-col items-center gap-2">
+                  <div className="flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2">
+                    <Coins className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {userCredits?.credits ?? 0} credits available
+                    </span>
+                  </div>
+                  {requiredCredits && (
+                    <div className="text-sm text-muted-foreground">
+                      This project requires {requiredCredits} credits
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <div className="flex flex-col items-center space-y-6">
@@ -285,6 +335,12 @@ export default function CreatePage() {
           </form>
         </div>
       </Card>
+
+      <CreditPurchaseModal
+        isOpen={showCreditModal}
+        onClose={() => setShowCreditModal(false)}
+        requiredCredits={requiredCredits || undefined}
+      />
     </div>
   );
 }

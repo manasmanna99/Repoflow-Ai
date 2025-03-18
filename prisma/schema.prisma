@@ -35,7 +35,7 @@ model User {
     lastName  String?
 
     emailAddress   String          @unique
-    credits        Int             @default(150)
+    credits        Int             @default(50)
     userToProjects UserToProject[]
 
     questionsAsked Question[]
