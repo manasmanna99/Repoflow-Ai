@@ -245,6 +245,8 @@ export default function Home() {
           </div>
         </section>
 
+        {/* Features Section */}
+
         <section className="relative pb-16 pt-16 md:pb-32">
           <div className="mb-8 text-center">
             <motion.h2
