@@ -14,6 +14,9 @@ import { TextEffect } from "~/components/ui/text-effect";
 import { AnimatedGroup } from "~/components/ui/animated-group";
 import { HeroHeader } from "~/components/hero5-header";
 import { motion } from "framer-motion";
+import { Features8 } from "~/components/features-8";
+import { Footer } from "~/components/footer";
+import { Pricing } from "~/components/pricing";
 
 const transitionVariants = {
   item: {
@@ -246,126 +249,9 @@ export default function Home() {
         </section>
 
         {/* Features Section */}
-
-        <section className="relative pb-16 pt-16 md:pb-32">
-          <div className="mb-8 text-center">
-            <motion.h2
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="text-2xl font-bold text-foreground"
-            >
-              Built with modern technology stack
-            </motion.h2>
-            <motion.div
-              initial={{ scaleX: 0 }}
-              whileInView={{ scaleX: 1 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
-              className="mx-auto mt-2 h-1 w-24 rounded-full bg-gradient-to-r from-primary to-secondary"
-            />
-          </div>
-
-          <div className="group relative m-auto max-w-5xl px-6">
-            <div className="absolute inset-0 z-10 flex scale-95 items-center justify-center opacity-0 duration-500 group-hover:scale-100 group-hover:opacity-100">
-              <Link
-                href="/features"
-                className="block text-sm duration-150 hover:opacity-75"
-              >
-                <span>Explore Features</span>
-                <ChevronRight className="ml-1 inline-block size-3" />
-              </Link>
-            </div>
-            <div className="group-hover:blur-xs mx-auto mt-12 grid max-w-2xl grid-cols-4 gap-x-12 gap-y-8 transition-all duration-500 group-hover:opacity-50 sm:gap-x-16 sm:gap-y-14">
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/github.svg"
-                  alt="GitHub"
-                  width={32}
-                  height={32}
-                />
-              </div>
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/nextjs.svg"
-                  alt="Next.js"
-                  width={32}
-                  height={32}
-                />
-              </div>
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/typescript.svg"
-                  alt="TypeScript"
-                  width={32}
-                  height={32}
-                />
-              </div>
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/tailwind.svg"
-                  alt="Tailwind CSS"
-                  width={32}
-                  height={32}
-                />
-              </div>
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/prisma.svg"
-                  alt="Prisma"
-                  width={32}
-                  height={32}
-                />
-              </div>
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/trpc.svg"
-                  alt="tRPC"
-                  width={32}
-                  height={32}
-                />
-              </div>
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/vercel.svg"
-                  alt="Vercel"
-                  width={32}
-                  height={32}
-                />
-              </div>
-              <div className="flex">
-                <Image
-                  className="mx-auto h-8 w-auto dark:invert"
-                  src="/tech/ai.svg"
-                  alt="AI"
-                  width={32}
-                  height={32}
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-16 text-center">
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.8 }}
-              className="flex items-center justify-center space-x-1"
-            >
-              <GitBranch className="size-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">
-                RepoFlow — Streamlining Code Collaboration
-              </span>
-              <GitPullRequest className="size-4 text-muted-foreground" />
-            </motion.div>
-          </div>
-        </section>
+        <Features8 />
+        <Pricing />
+        <Footer />
       </main>
     </>
   );
