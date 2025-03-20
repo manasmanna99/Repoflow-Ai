@@ -10,7 +10,6 @@ RepoFlow AI is an advanced AI-powered tool designed to analyze GitHub repositori
 - **Pull Request Insights**: Get detailed analysis of pull requests to improve code review efficiency.
 - **Performance Metrics**: Track key performance indicators and project health metrics over time.
 - **Team Collaboration**: Enhanced team communication with AI-powered code discussions and suggestions.
-- **Security Analysis**: Identify potential security issues and vulnerabilities in your codebase.
 - **Lightning Fast**: Optimized performance ensures quick analysis and instant insights.
 
 ## Getting Started
