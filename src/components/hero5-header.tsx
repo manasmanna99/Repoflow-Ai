@@ -8,10 +8,9 @@ import { cn } from "~/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 
 const menuItems = [
-  { name: "Features", href: "#link" },
-  { name: "Solution", href: "#link" },
-  { name: "Pricing", href: "#link" },
-  { name: "About", href: "#link" },
+  { name: "Features", href: "#features" },
+  { name: "Pricing", href: "#pricing" },
+
 ];
 
 export const HeroHeader = () => {
@@ -25,6 +24,7 @@ export const HeroHeader = () => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
   return (
     <header>
       <nav
@@ -61,7 +61,7 @@ export const HeroHeader = () => {
               </div>
             </div>
 
-            <div className="absolute inset-0 m-auto hidden size-fit lg:block">
+            <div className="hidden lg:block">
               <ul className="flex gap-8 text-sm">
                 {menuItems.map((item, index) => (
                   <li key={index}>
@@ -91,38 +91,37 @@ export const HeroHeader = () => {
                   ))}
                 </ul>
               </div>
-              <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-                <ThemeToggle />
+              
+              <ThemeToggle />
 
-                <Button
-                  asChild
-                  variant="outline"
-                  size="sm"
-                  className={cn(isScrolled && "lg:hidden")}
-                >
-                  <Link href="/sign-in">
-                    <span>Login</span>
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  className={cn(isScrolled && "lg:hidden")}
-                >
-                  <Link href="/sign-up">
-                    <span>Sign Up</span>
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  className={cn(isScrolled ? "lg:inline-flex" : "hidden")}
-                >
-                  <Link href="/create">
-                    <span>Get Started</span>
-                  </Link>
-                </Button>
-              </div>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className={cn(isScrolled && "lg:hidden")}
+              >
+                <Link href="/sign-in">
+                  <span>Login</span>
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="sm"
+                className={cn(isScrolled && "lg:hidden")}
+              >
+                <Link href="/sign-up">
+                  <span>Sign Up</span>
+                </Link>
+              </Button>
+              <Button
+                asChild
+                size="sm"
+                className={cn(isScrolled ? "lg:inline-flex" : "hidden")}
+              >
+                <Link href="/create">
+                  <span>Get Started</span>
+                </Link>
+              </Button>
             </div>
           </div>
         </div>

@@ -1,103 +1,159 @@
-import Link from 'next/link'
-import { Button } from '~/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
-import { Check } from 'lucide-react'
+"use client";
 
-export default function Pricing() {
-    return (
-        <section className="py-16 md:py-32">
-            <div className="mx-auto max-w-6xl px-6">
-                <div className="mx-auto max-w-2xl space-y-6 text-center">
-                    <h1 className="text-center text-4xl font-semibold lg:text-5xl">Pricing that Scales with You</h1>
-                    <p>Gemini is evolving to be more than just the models. It supports an entire to the APIs and platforms helping developers and businesses innovate.</p>
+import { motion } from "framer-motion";
+import { Check } from "lucide-react";
+import { Button } from "~/components/ui/button";
+import { cn } from "~/lib/utils";
+import Link from "next/link";
+
+const tiers = [
+  {
+    name: "Free",
+    id: "tier-free",
+    href: "/sign-up",
+    price: { monthly: "$0" },
+    description: "Perfect for getting started with code analysis.",
+    features: [
+      "Up to 5 repositories",
+      "Basic code analysis",
+      "Standard support",
+      "Community access",
+    ],
+    featured: false,
+  },
+  {
+    name: "Pro",
+    id: "tier-pro",
+    href: "/sign-up",
+    price: { monthly: "$29" },
+    description: "Advanced features for professional developers.",
+    features: [
+      "Unlimited repositories",
+      "Advanced code analysis",
+      "Priority support",
+      "Team collaboration",
+      "Custom integrations",
+      "API access",
+    ],
+    featured: true,
+  },
+  {
+    name: "Enterprise",
+    id: "tier-enterprise",
+    href: "/contact",
+    price: { monthly: "Custom" },
+    description: "Custom solutions for large organizations.",
+    features: [
+      "Everything in Pro",
+      "Custom AI models",
+      "Dedicated support",
+      "SLA guarantees",
+      "On-premise deployment",
+      "Custom training",
+    ],
+    featured: false,
+  },
+];
+
+export function Pricing() {
+  return (
+    <div id="pricing" className="relative py-24 sm:py-32">
+      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+        <div className="mx-auto max-w-2xl text-center">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-base font-semibold leading-7 text-primary"
+          >
+            Pricing
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.1 }}
+            className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl"
+          >
+            Choose the right plan for you
+          </motion.p>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mt-6 text-lg leading-8 text-muted-foreground"
+          >
+            Start with our free plan and upgrade as you grow.
+          </motion.p>
+        </div>
+        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 gap-y-6 sm:mt-20 lg:max-w-none lg:grid-cols-3 lg:gap-x-8">
+          {tiers.map((tier) => (
+            <motion.div
+              key={tier.id}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.1 }}
+              className={cn(
+                "flex flex-col justify-between rounded-3xl border bg-card p-8 ring-1 ring-muted-foreground/10 xl:p-10",
+                tier.featured && "border-primary/50 ring-primary/50"
+              )}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-x-4">
+                  <h3
+                    id={tier.id}
+                    className="text-lg font-semibold leading-8"
+                  >
+                    {tier.name}
+                  </h3>
+                  {tier.featured && (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold leading-5 text-primary">
+                      Most popular
+                    </span>
+                  )}
                 </div>
-
-                <div className="mt-8 grid gap-6 md:mt-20 md:grid-cols-3">
-                    <Card className="flex flex-col">
-                        <CardHeader>
-                            <CardTitle className="font-medium">Free</CardTitle>
-                            <span className="my-3 block text-2xl font-semibold">$0 / mo</span>
-                            <CardDescription className="text-sm">Per editor</CardDescription>
-                        </CardHeader>
-
-                        <CardContent className="space-y-4">
-                            <hr className="border-dashed" />
-
-                            <ul className="list-outside space-y-3 text-sm">
-                                {['Basic Analytics Dashboard', '5GB Cloud Storage', 'Email and Chat Support'].map((item, index) => (
-                                    <li key={index} className="flex items-center gap-2">
-                                        <Check className="size-3" />
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-
-                        <CardFooter className="mt-auto">
-                            <Button asChild variant="outline" className="w-full">
-                                <Link href="">Get Started</Link>
-                            </Button>
-                        </CardFooter>
-                    </Card>
-
-                    <Card className="relative">
-                        <span className="bg-linear-to-br/increasing absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full from-purple-400 to-amber-300 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-inset ring-white/20 ring-offset-1 ring-offset-gray-950/5">Popular</span>
-
-                        <div className="flex flex-col">
-                            <CardHeader>
-                                <CardTitle className="font-medium">Pro</CardTitle>
-                                <span className="my-3 block text-2xl font-semibold">$19 / mo</span>
-                                <CardDescription className="text-sm">Per editor</CardDescription>
-                            </CardHeader>
-
-                            <CardContent className="space-y-4">
-                                <hr className="border-dashed" />
-                                <ul className="list-outside space-y-3 text-sm">
-                                    {['Everything in Free Plan', '5GB Cloud Storage', 'Email and Chat Support', 'Access to Community Forum', 'Single User Access', 'Access to Basic Templates', 'Mobile App Access', '1 Custom Report Per Month', 'Monthly Product Updates', 'Standard Security Features'].map((item, index) => (
-                                        <li key={index} className="flex items-center gap-2">
-                                            <Check className="size-3" />
-                                            {item}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-
-                            <CardFooter>
-                                <Button asChild className="w-full">
-                                    <Link href="">Get Started</Link>
-                                </Button>
-                            </CardFooter>
-                        </div>
-                    </Card>
-
-                    <Card className="flex flex-col">
-                        <CardHeader>
-                            <CardTitle className="font-medium">Startup</CardTitle>
-                            <span className="my-3 block text-2xl font-semibold">$29 / mo</span>
-                            <CardDescription className="text-sm">Per editor</CardDescription>
-                        </CardHeader>
-
-                        <CardContent className="space-y-4">
-                            <hr className="border-dashed" />
-
-                            <ul className="list-outside space-y-3 text-sm">
-                                {['Everything in Pro Plan', '5GB Cloud Storage', 'Email and Chat Support'].map((item, index) => (
-                                    <li key={index} className="flex items-center gap-2">
-                                        <Check className="size-3" />
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-
-                        <CardFooter className="mt-auto">
-                            <Button asChild variant="outline" className="w-full">
-                                <Link href="">Get Started</Link>
-                            </Button>
-                        </CardFooter>
-                    </Card>
-                </div>
-            </div>
-        </section>
-    )
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">
+                  {tier.description}
+                </p>
+                <p className="mt-6 flex items-baseline gap-x-1">
+                  <span className="text-4xl font-bold tracking-tight">
+                    {tier.price.monthly}
+                  </span>
+                  <span className="text-sm font-semibold leading-6 text-muted-foreground">
+                    /month
+                  </span>
+                </p>
+                <ul
+                  role="list"
+                  className="mt-8 space-y-3 text-sm leading-6 text-muted-foreground"
+                >
+                  {tier.features.map((feature) => (
+                    <li key={feature} className="flex gap-x-3">
+                      <Check
+                        className="h-6 w-5 flex-none text-primary"
+                        aria-hidden="true"
+                      />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <Button
+                asChild
+                className={cn(
+                  "mt-8",
+                  tier.featured
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                <Link href={tier.href}>
+                  Get started
+                </Link>
+              </Button>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
