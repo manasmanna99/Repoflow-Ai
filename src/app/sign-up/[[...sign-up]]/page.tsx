@@ -47,7 +47,7 @@ export default function Page() {
 
       {/* Card container */}
       <div className="relative z-10">
-        <SignUp />
+        <SignUp redirectUrl="/sync-user" />
       </div>
     </div>
   );

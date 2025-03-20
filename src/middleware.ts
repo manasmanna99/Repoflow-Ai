@@ -7,9 +7,11 @@ const isPublicRoute = (path: string) => {
     "/sign-in(.*)",
     "/sign-up(.*)",
     "/api/razorpay/webhook",
+    "/sync-user",
+    "/api/sync-user",
   ];
   return publicPaths.some((pattern) => {
-    const regex = new RegExp(`^${pattern.replace(/\*/g, ".*")}$`); // Fix wildcard replacement
+    const regex = new RegExp(`^${pattern.replace(/\*/g, ".*")}$`);
     return regex.test(path);
   });
 };
@@ -25,6 +27,11 @@ export default clerkMiddleware(async (authFn, req) => {
     return NextResponse.next();
   }
 
+  // Allow users to complete sign-up process and sync
+  if (pathname.startsWith("/sign-up") || pathname === "/sync-user" || pathname === "/api/sync-user") {
+    return NextResponse.next();
+  }
+
   // Redirect unauthenticated users to /sign-in
   if (!userId && !isPublicRoute(pathname)) {
     const signInUrl = new URL("/sign-in", req.nextUrl.origin);
@@ -35,7 +42,7 @@ export default clerkMiddleware(async (authFn, req) => {
   }
 
   // Redirect authenticated users from public pages to /create
-  if (userId && isPublicRoute(pathname)) {
+  if (userId && isPublicRoute(pathname) && !pathname.startsWith("/sign-up") && pathname !== "/sync-user" && pathname !== "/api/sync-user") {
     return NextResponse.redirect(new URL("/create", req.nextUrl.origin));
   }
 
