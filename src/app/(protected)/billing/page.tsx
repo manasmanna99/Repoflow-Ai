@@ -41,7 +41,7 @@ export default function BillingPage() {
           <CardContent>
             <div className="text-4xl font-bold">{user?.credits ?? 0}</div>
             <p className="text-sm text-muted-foreground">
-              Each project costs 1 credit
+              Each project cost credits
             </p>
             <Button
               className="mt-4 w-full"
