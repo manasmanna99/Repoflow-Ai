@@ -18,7 +18,11 @@ type Response = {
 export const getCommitHashes = async (
   githubUrl: string,
 ): Promise<Response[]> => {
-  const [owner, repo] = githubUrl.split("/").slice(-2);
+  // Handle both https://github.com/owner/repo and owner/repo formats
+  const urlParts = githubUrl.replace(/^https?:\/\//, "").split("/");
+  const owner = urlParts[urlParts.length - 2];
+  const repo = urlParts[urlParts.length - 1];
+
   if (!owner || !repo) {
     throw new Error("Invalid GitHub URL");
   }
@@ -75,7 +79,11 @@ async function getDiffFromGitHub(
 
 async function summarizeCommit(githubUrl: string, commitHash: string) {
   try {
-    const [owner, repo] = githubUrl.split("/").slice(-2);
+    // Handle both https://github.com/owner/repo and owner/repo formats
+    const urlParts = githubUrl.replace(/^https?:\/\//, "").split("/");
+    const owner = urlParts[urlParts.length - 2];
+    const repo = urlParts[urlParts.length - 1];
+
     if (!owner || !repo) {
       throw new Error("Invalid GitHub URL");
     }
