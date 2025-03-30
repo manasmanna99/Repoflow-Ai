@@ -4,8 +4,8 @@ import { generateEmbedding, summariseCode } from "./gemini";
 import { db } from "~/server/db";
 
 // Batch processing configuration
-const BATCH_SIZE = 5; // Process 5 files at a time
-const BATCH_DELAY = 10000; // 10 seconds between batches
+const BATCH_SIZE = 10; // Process 10 files at a time
+const BATCH_DELAY = 5000; // 5 seconds between batches
 
 async function processBatch<T>(
   items: T[],
