@@ -1,4 +1,4 @@
-export type ProjectStatus = "indexing" | "ready" | "error";
+export type ProjectStatus = "pending" | "indexing" | "completed" | "failed";
 
 export interface Project {
   id: string;

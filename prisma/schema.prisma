@@ -97,4 +97,7 @@ model SourceCodeEmbedding {
     summary          String
     projectId        String
     project          Project                     @relation(fields: [projectId], references: [id])
+
+    @@index([projectId])
+    @@index([projectId, fileName])
 }

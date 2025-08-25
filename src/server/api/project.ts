@@ -4,27 +4,47 @@ import { poolCommits } from "~/lib/github";
 import { loadGithubRepo, generateEmbeddings } from "~/lib/github-loader";
 
 // Calculate credits based on repository size
-function calculateCredits(fileCount: number): number {
-  if (fileCount <= 10) return 1;
-  if (fileCount <= 50) return 10;
-  if (fileCount <= 100) return 25;
-  if (fileCount <= 200) return 50;
-  return 100; // For very large repositories
+function calculateCredits(repoInfo: {
+  fileCount: number;
+  totalSize: number;
+  languages: string[];
+}): number {
+  const baseCredits = Math.ceil(repoInfo.fileCount / 10);
+  const sizeMultiplier = Math.ceil(repoInfo.totalSize / (1024 * 1024)); // Size in MB
+  const complexityMultiplier = repoInfo.languages.length > 5 ? 1.5 : 1;
+
+  return Math.max(
+    1,
+    Math.ceil(baseCredits * sizeMultiplier * complexityMultiplier),
+  );
 }
 
 export const projectRouter = createTRPCRouter({
   createProject: protectedProcedure
     .input(
       z.object({
-        name: z.string(),
-        githubUrl: z.string(),
-        githubToken: z.string().optional(),
+        name: z.string().min(1).max(100),
+        githubUrl: z
+          .string()
+          .url()
+          .refine(
+            (url) => url.includes("github.com"),
+            "Must be a valid GitHub repository URL",
+          ),
+        githubToken: z.string().min(1).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       // First, get repository info to calculate required credits
       const repoInfo = await loadGithubRepo(input.githubUrl, input.githubToken);
-      const requiredCredits = calculateCredits(repoInfo.length);
+      const requiredCredits = calculateCredits({
+        fileCount: repoInfo.length,
+        totalSize: repoInfo.reduce(
+          (acc, file) => acc + file.metadata.source.length,
+          0,
+        ),
+        languages: repoInfo.map((file) => file.metadata.source.split(".")[1]),
+      });
 
       // Check user credits
       const user = await ctx.db.user.findUnique({
@@ -34,7 +54,7 @@ export const projectRouter = createTRPCRouter({
 
       if (!user || user.credits < requiredCredits) {
         throw new Error(
-          `Insufficient credits. This project requires ${requiredCredits} credits. Please purchase more credits to create this project.`
+          `Insufficient credits. This project requires ${requiredCredits} credits. Please purchase more credits to create this project.`,
         );
       }
 
@@ -66,8 +86,11 @@ export const projectRouter = createTRPCRouter({
       void (async () => {
         try {
           // Generate embeddings in smaller chunks
-          const allEmbeddings = await generateEmbeddings(repoInfo);
-          const validEmbeddings = allEmbeddings.filter((e) => e !== null);
+          const embeddingResult = await generateEmbeddings(
+            repoInfo,
+            project.id,
+          );
+          const validEmbeddings = embeddingResult.successful;
 
           // Save to database in smaller chunks
           const SAVE_BATCH_SIZE = 3;
@@ -131,6 +154,8 @@ export const projectRouter = createTRPCRouter({
     .input(
       z.object({
         projectId: z.string(),
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.number().min(0).default(0),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -140,13 +165,34 @@ export const projectRouter = createTRPCRouter({
           console.error("Error pooling commits:", error);
         });
 
-        // Return existing commits immediately
-        return await ctx.db.commit.findMany({
+        // Return existing commits with pagination
+        const commits = await ctx.db.commit.findMany({
           where: { projectId: input.projectId },
           orderBy: {
             commitDate: "desc",
           },
+          take: input.limit,
+          skip: input.cursor,
         });
+
+        // Get total count for pagination metadata
+        const totalCount = await ctx.db.commit.count({
+          where: { projectId: input.projectId },
+        });
+
+        return {
+          commits,
+          pagination: {
+            total: totalCount,
+            limit: input.limit,
+            offset: input.cursor,
+            hasMore: input.cursor + input.limit < totalCount,
+            nextCursor:
+              input.cursor + input.limit < totalCount
+                ? input.cursor + input.limit
+                : null,
+          },
+        };
       } catch (error) {
         console.error("Error fetching commits:", error);
         throw new Error("Failed to fetch commits");
@@ -173,9 +219,15 @@ export const projectRouter = createTRPCRouter({
       });
     }),
   getQuestions: protectedProcedure
-    .input(z.object({ projectId: z.string() }))
+    .input(
+      z.object({
+        projectId: z.string(),
+        limit: z.number().min(1).max(100).default(50),
+        cursor: z.number().min(0).default(0),
+      }),
+    )
     .query(async ({ ctx, input }) => {
-      return await ctx.db.question.findMany({
+      const questions = await ctx.db.question.findMany({
         where: { projectId: input.projectId },
         include: {
           user: true,
@@ -183,7 +235,27 @@ export const projectRouter = createTRPCRouter({
         orderBy: {
           createdAt: "desc",
         },
+        take: input.limit,
+        skip: input.cursor,
       });
+
+      const totalCount = await ctx.db.question.count({
+        where: { projectId: input.projectId },
+      });
+
+      return {
+        questions,
+        pagination: {
+          total: totalCount,
+          limit: input.limit,
+          offset: input.cursor,
+          hasMore: input.cursor + input.limit < totalCount,
+          nextCursor:
+            input.cursor + input.limit < totalCount
+              ? input.cursor + input.limit
+              : null,
+        },
+      };
     }),
   archiveProject: protectedProcedure
     .input(z.object({ projectId: z.string() }))

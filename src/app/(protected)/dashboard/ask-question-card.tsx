@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from "~/components/ui/card";
 import { MessageSquare } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import useProject from "~/hooks/use-project";
 import {
   Dialog,
@@ -40,7 +40,7 @@ export const AskQuestionCard = () => {
   >([]);
   const [answer, setAnswer] = useState<string>("");
 
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     setAnswer("");
     setFilesReferences([]);
     e.preventDefault();
@@ -66,7 +66,7 @@ export const AskQuestionCard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [project?.id, question]);
 
   const handleSave = () => {
     savedAnswers.mutate(

@@ -9,9 +9,11 @@ import { api } from "~/trpc/react";
 
 export default function CommitLog() {
   const { projectId } = useProject();
-  const { data: commits } = api.project.getCommits.useQuery({
+  const { data: commitsResponse } = api.project.getCommits.useQuery({
     projectId: projectId!,
   });
+
+  const commits = commitsResponse?.commits || [];
   return (
     <Card>
       <CardHeader>
@@ -25,7 +27,7 @@ export default function CommitLog() {
           {/* Timeline line */}
           <div className="absolute left-5 top-0 h-full w-0.5 -translate-x-1/2 bg-border/60" />
 
-          {commits?.map((commit, index) => (
+          {commits.map((commit, index) => (
             <div key={commit.id}>
               <div className="relative flex gap-4">
                 {/* Circle connector */}

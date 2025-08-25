@@ -3,9 +3,137 @@ import { Document } from "@langchain/core/documents";
 import { generateEmbedding, summariseCode } from "./gemini";
 import { db } from "~/server/db";
 
-// Batch processing configuration
-const BATCH_SIZE = 5; // Process 10 files at a time
-const BATCH_DELAY = 5000; // 5 seconds between batches
+// Custom error types for better error handling
+export class RepositoryLoadError extends Error {
+  constructor(
+    message: string,
+    public readonly repositoryUrl: string,
+    public readonly cause?: Error,
+  ) {
+    super(message);
+    this.name = "RepositoryLoadError";
+  }
+}
+
+export class EmbeddingGenerationError extends Error {
+  constructor(
+    message: string,
+    public readonly fileName?: string,
+    public readonly cause?: Error,
+  ) {
+    super(message);
+    this.name = "EmbeddingGenerationError";
+  }
+}
+
+export class RateLimitError extends Error {
+  constructor(
+    message: string,
+    public readonly retryAfter?: number,
+    public readonly service?: string,
+  ) {
+    super(message);
+    this.name = "RateLimitError";
+  }
+}
+
+export class APIError extends Error {
+  constructor(
+    message: string,
+    public readonly statusCode?: number,
+    public readonly service?: string,
+  ) {
+    super(message);
+    this.name = "APIError";
+  }
+}
+
+export class DatabaseError extends Error {
+  constructor(
+    message: string,
+    public readonly operation?: string,
+    public readonly cause?: Error,
+  ) {
+    super(message);
+    this.name = "DatabaseError";
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(
+    message: string,
+    public readonly field?: string,
+  ) {
+    super(message);
+    this.name = "ValidationError";
+  }
+}
+
+// Result types for better type safety
+export interface EmbeddingResult {
+  summary: string;
+  embedding: number[];
+  sourceCode: string;
+  fileName: string;
+}
+
+export interface ProcessingResult {
+  successful: EmbeddingResult[];
+  failed: Array<{
+    fileName: string;
+    error: string;
+  }>;
+  stats: {
+    totalFiles: number;
+    successCount: number;
+    failureCount: number;
+    processingTimeMs: number;
+  };
+}
+
+// Adaptive batch processing configuration
+const getBatchConfig = (totalFiles: number) => {
+  // Adaptive batch sizing based on repository size
+  let batchSize: number;
+  let delay: number;
+
+  if (totalFiles <= 20) {
+    // Small repos: process quickly with larger batches
+    batchSize = 10;
+    delay = 1000; // 1 second
+  } else if (totalFiles <= 100) {
+    // Medium repos: balanced approach
+    batchSize = 15;
+    delay = 2000; // 2 seconds
+  } else if (totalFiles <= 500) {
+    // Large repos: conservative batching
+    batchSize = 20;
+    delay = 3000; // 3 seconds
+  } else {
+    // Very large repos: maximum efficiency
+    batchSize = 25;
+    delay = 4000; // 4 seconds
+  }
+
+  return { batchSize, delay };
+};
+
+// Queue processing status for background jobs
+interface ProcessingJob {
+  projectId: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  progress: {
+    current: number;
+    total: number;
+    phase: "loading" | "processing" | "saving";
+  };
+  startedAt: Date;
+  completedAt?: Date;
+  error?: string;
+}
+
+// Simple in-memory job queue (could be replaced with Redis in production)
+const processingQueue = new Map<string, ProcessingJob>();
 
 async function processBatch<T>(
   items: T[],
@@ -18,50 +146,125 @@ async function processBatch<T>(
 
     try {
       const result = await processor(item);
-      results.push(result);
-      // Small delay between individual items
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (error) {
-      if (error instanceof Error) {
-        console.error(`Error processing item ${i + 1}:`, error.message);
-      } else {
-        console.error(`Error processing item ${i + 1}:`, String(error));
+      if (result) {
+        results.push(result);
       }
-      results.push(null);
-    }
-  }
-  return results.filter((result) => result !== null);
-}
-
-async function processInBatches<T>(
-  items: T[],
-  batchSize: number,
-  processor: (item: T) => Promise<any>,
-) {
-  const results = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    console.log(
-      `\nProcessing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(items.length / batchSize)}`,
-    );
-
-    const batchResults = await processBatch(batch, processor);
-    results.push(...batchResults);
-
-    // Add delay between batches if not the last batch
-    if (i + batchSize < items.length) {
-      console.log(`Waiting ${BATCH_DELAY / 1000} seconds before next batch...`);
-      await new Promise((resolve) => setTimeout(resolve, BATCH_DELAY));
+      // Yield control periodically for large batches
+      if (i % 10 === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    } catch (error) {
+      console.error(`Error processing item ${i}:`, error);
     }
   }
   return results;
 }
 
+async function processInBatches<T>(
+  items: T[],
+  batchSize: number,
+  delay: number,
+  processor: (item: T) => Promise<any>,
+  onProgress?: (current: number, total: number) => void,
+) {
+  const results = [];
+  const totalBatches = Math.ceil(items.length / batchSize);
+
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    const currentBatch = Math.floor(i / batchSize) + 1;
+
+    console.log(
+      `\nProcessing batch ${currentBatch} of ${totalBatches} (${batch.length} items)`,
+    );
+
+    const batchResults = await processBatch(batch, processor);
+    results.push(...batchResults);
+
+    // Update progress if callback provided
+    if (onProgress) {
+      onProgress(i + batch.length, items.length);
+    }
+
+    // Add adaptive delay between batches if not the last batch
+    if (i + batchSize < items.length) {
+      console.log(`Waiting ${delay / 1000} seconds before next batch...`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  return results;
+}
+
+// Enhanced error recovery with exponential backoff
+async function withRetry<T>(
+  operation: () => Promise<T>,
+  maxRetries: number = 3,
+  baseDelay: number = 1000,
+): Promise<T> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      if (attempt === maxRetries) {
+        throw error;
+      }
+
+      const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+      console.log(
+        `Attempt ${attempt}/${maxRetries} failed, retrying in ${delay}ms...`,
+      );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
+// Background job management functions
+export const getJobStatus = (projectId: string): ProcessingJob | undefined => {
+  return processingQueue.get(projectId);
+};
+
+export const updateJobProgress = (
+  projectId: string,
+  progress: Partial<ProcessingJob["progress"]>,
+  status?: ProcessingJob["status"],
+) => {
+  const job = processingQueue.get(projectId);
+  if (job) {
+    job.progress = { ...job.progress, ...progress };
+    if (status) job.status = status;
+    processingQueue.set(projectId, job);
+  }
+};
+
 export const loadGithubRepo = async (
   githubUrl: string,
   githubToken?: string,
-) => {
+): Promise<Document[]> => {
+  // Input validation
+  if (!githubUrl || typeof githubUrl !== "string") {
+    throw new ValidationError(
+      "Repository URL is required and must be a string",
+      "githubUrl",
+    );
+  }
+
+  if (!githubUrl.includes("github.com")) {
+    throw new ValidationError(
+      "Must be a valid GitHub repository URL",
+      "githubUrl",
+    );
+  }
+
+  // Validate URL format
+  try {
+    new URL(githubUrl);
+  } catch {
+    throw new ValidationError("Invalid URL format", "githubUrl");
+  }
+
   console.log(`Loading repository: ${githubUrl}`);
+
   const loader = new GithubRepoLoader(githubUrl, {
     accessToken: githubToken || "",
     branch: "main",
@@ -117,141 +320,513 @@ export const loadGithubRepo = async (
 
   try {
     const docs = await loader.load();
+
+    if (!Array.isArray(docs)) {
+      throw new RepositoryLoadError(
+        "Repository loader returned invalid data format",
+        githubUrl,
+      );
+    }
+
+    if (docs.length === 0) {
+      throw new RepositoryLoadError(
+        "Repository appears to be empty or contains no accessible files",
+        githubUrl,
+      );
+    }
+
     console.log(`Successfully loaded ${docs.length} files from repository`);
     return docs;
   } catch (error) {
+    // Enhanced error categorization for repository loading
+    if (error instanceof RepositoryLoadError) {
+      throw error; // Re-throw our custom errors
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error loading repository:", errorMessage);
-    throw new Error(`Failed to load repository: ${errorMessage}`);
+
+    // Common GitHub API errors
+    if (errorMessage.includes("404") || errorMessage.includes("Not Found")) {
+      throw new RepositoryLoadError(
+        "Repository not found. Please check the URL and ensure the repository is public or you have access.",
+        githubUrl,
+        error instanceof Error ? error : undefined,
+      );
+    }
+
+    if (errorMessage.includes("403") || errorMessage.includes("Forbidden")) {
+      throw new RepositoryLoadError(
+        "Access denied. Repository may be private or rate limit exceeded. Please provide a valid GitHub token.",
+        githubUrl,
+        error instanceof Error ? error : undefined,
+      );
+    }
+
+    if (errorMessage.includes("401") || errorMessage.includes("Unauthorized")) {
+      throw new RepositoryLoadError(
+        "Authentication failed. Please check your GitHub token.",
+        githubUrl,
+        error instanceof Error ? error : undefined,
+      );
+    }
+
+    if (errorMessage.includes("rate limit") || errorMessage.includes("429")) {
+      throw new RateLimitError(
+        "GitHub API rate limit exceeded. Please try again later or provide a GitHub token.",
+        undefined,
+        "GitHub API",
+      );
+    }
+
+    if (
+      errorMessage.includes("timeout") ||
+      errorMessage.includes("ETIMEDOUT")
+    ) {
+      throw new RepositoryLoadError(
+        "Request timeout. The repository may be too large or GitHub API is slow. Please try again.",
+        githubUrl,
+        error instanceof Error ? error : undefined,
+      );
+    }
+
+    // Network errors
+    if (
+      errorMessage.includes("ENOTFOUND") ||
+      errorMessage.includes("network")
+    ) {
+      throw new RepositoryLoadError(
+        "Network error. Please check your internet connection and try again.",
+        githubUrl,
+        error instanceof Error ? error : undefined,
+      );
+    }
+
+    // Generic error fallback
+    throw new RepositoryLoadError(
+      `Failed to load repository: ${errorMessage}`,
+      githubUrl,
+      error instanceof Error ? error : undefined,
+    );
   }
 };
 
-export const generateEmbeddings = async (docs: Document[]) => {
-  console.log("\nGenerating summaries and embeddings...");
+export const generateEmbeddings = async (
+  docs: Document[],
+  projectId?: string,
+): Promise<ProcessingResult> => {
+  // Input validation
+  if (!docs || !Array.isArray(docs)) {
+    throw new ValidationError("Documents must be provided as an array", "docs");
+  }
 
-  const processFile = async (doc: Document) => {
-    try {
-      console.log(`\nProcessing ${doc.metadata.source}`);
+  if (docs.length === 0) {
+    throw new ValidationError(
+      "No documents provided for embedding generation",
+      "docs",
+    );
+  }
 
-      // Try to generate summary with retries
-      let summary = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
-        try {
-          summary = await summariseCode(doc);
-          if (summary) break;
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-          console.error(
-            `Attempt ${attempt}/3 failed for ${doc.metadata.source}:`,
-            errorMessage,
-          );
-          if (attempt === 3) throw error;
-          await new Promise((resolve) => setTimeout(resolve, attempt * 3000));
-        }
+  const startTime = Date.now();
+  const successful: EmbeddingResult[] = [];
+  const failed: Array<{ fileName: string; error: string }> = [];
+
+  console.log(
+    `\nGenerating summaries and embeddings for ${docs.length} files...`,
+  );
+
+  try {
+    // Get adaptive batch configuration
+    const { batchSize, delay } = getBatchConfig(docs.length);
+    console.log(
+      `Using adaptive batching: ${batchSize} files per batch, ${delay}ms delay`,
+    );
+
+    const processFile = async (
+      doc: Document,
+    ): Promise<EmbeddingResult | null> => {
+      if (!doc?.metadata?.source) {
+        const error = "Document missing required metadata.source";
+        failed.push({ fileName: "unknown", error });
+        return null;
       }
 
-      if (!summary) {
-        throw new Error("Failed to generate summary after all attempts");
+      return await withRetry(
+        async () => {
+          console.log(`Processing ${doc.metadata.source}`);
+
+          try {
+            // Generate summary with improved error handling
+            const summary = await summariseCode(doc);
+            if (
+              !summary ||
+              typeof summary !== "string" ||
+              summary.trim().length === 0
+            ) {
+              throw new EmbeddingGenerationError(
+                "Failed to generate valid summary",
+                doc.metadata.source,
+              );
+            }
+
+            // Generate embedding once we have a summary
+            const embedding = await generateEmbedding(summary);
+            if (!Array.isArray(embedding) || embedding.length === 0) {
+              throw new EmbeddingGenerationError(
+                "Failed to generate valid embedding vector",
+                doc.metadata.source,
+              );
+            }
+
+            console.log(`✅ Successfully processed ${doc.metadata.source}`);
+            return {
+              summary,
+              embedding,
+              sourceCode: JSON.parse(JSON.stringify(doc.pageContent)),
+              fileName: doc.metadata.source,
+            };
+          } catch (error) {
+            // Enhanced error categorization
+            let errorMessage: string;
+
+            if (error instanceof RateLimitError) {
+              errorMessage = `AI service rate limit exceeded${error.retryAfter ? ` (retry after ${error.retryAfter}s)` : ". Please try again later."}`;
+              throw new EmbeddingGenerationError(
+                errorMessage,
+                doc.metadata.source,
+                error,
+              );
+            } else if (error instanceof APIError) {
+              errorMessage = `AI service error: ${error.message}${error.statusCode ? ` (Status: ${error.statusCode})` : ""}`;
+              throw new EmbeddingGenerationError(
+                errorMessage,
+                doc.metadata.source,
+                error,
+              );
+            } else if (error instanceof EmbeddingGenerationError) {
+              throw error; // Re-throw our custom errors
+            } else {
+              const errorMsg =
+                error instanceof Error ? error.message : String(error);
+              throw new EmbeddingGenerationError(
+                `Unexpected error during processing: ${errorMsg}`,
+                doc.metadata.source,
+                error instanceof Error ? error : undefined,
+              );
+            }
+          }
+        },
+        3,
+        2000,
+      ).catch((error) => {
+        // Final error handling for failed retries
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        failed.push({ fileName: doc.metadata.source, error: errorMessage });
+        console.error(
+          `❌ Failed to process ${doc.metadata.source}: ${errorMessage}`,
+        );
+        return null;
+      });
+    };
+
+    // Progress tracking callback
+    const onProgress = (current: number, total: number) => {
+      if (projectId) {
+        updateJobProgress(projectId, { current, total, phase: "processing" });
       }
-
-      // Generate embedding once we have a summary
-      const embedding = await generateEmbedding(summary);
-
-      console.log(`✅ Successfully processed ${doc.metadata.source}`);
-      return {
-        summary,
-        embedding,
-        sourceCode: JSON.parse(JSON.stringify(doc.pageContent)),
-        fileName: doc.metadata.source,
-      };
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      console.error(
-        `❌ Failed to process ${doc.metadata.source}:`,
-        errorMessage,
+      console.log(
+        `Progress: ${current}/${total} files processed (${Math.round((current / total) * 100)}%)`,
       );
-      return null;
-    }
-  };
+    };
 
-  return await processInBatches(docs, BATCH_SIZE, processFile);
+    const results = await processInBatches(
+      docs,
+      batchSize,
+      delay,
+      processFile,
+      onProgress,
+    );
+
+    // Filter and categorize results
+    for (const result of results) {
+      if (result !== null) {
+        successful.push(result);
+      }
+    }
+
+    const processingTimeMs = Date.now() - startTime;
+
+    console.log(`\nEmbedding generation completed:`);
+    console.log(`- Total files: ${docs.length}`);
+    console.log(`- Successfully processed: ${successful.length}`);
+    console.log(`- Failed: ${failed.length}`);
+    console.log(`- Processing time: ${processingTimeMs}ms`);
+
+    // Log failed files for debugging
+    if (failed.length > 0) {
+      console.warn("\nFailed files:");
+      failed.forEach(({ fileName, error }) => {
+        console.warn(`  - ${fileName}: ${error}`);
+      });
+    }
+
+    return {
+      successful,
+      failed,
+      stats: {
+        totalFiles: docs.length,
+        successCount: successful.length,
+        failureCount: failed.length,
+        processingTimeMs,
+      },
+    };
+  } catch (error) {
+    const processingTimeMs = Date.now() - startTime;
+
+    // Handle catastrophic failures
+    if (error instanceof ValidationError) {
+      throw error; // Re-throw validation errors as-is
+    }
+
+    if (error instanceof RateLimitError) {
+      throw new EmbeddingGenerationError(
+        `Embedding generation failed due to rate limiting: ${error.message}`,
+        undefined,
+        error,
+      );
+    }
+
+    if (error instanceof APIError) {
+      throw new EmbeddingGenerationError(
+        `Embedding generation failed due to API error: ${error.message}`,
+        undefined,
+        error,
+      );
+    }
+
+    // Unknown errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new EmbeddingGenerationError(
+      `Critical failure during embedding generation: ${errorMessage}`,
+      undefined,
+      error instanceof Error ? error : undefined,
+    );
+  }
 };
 
 export const indexGithubRepo = async (
   projectId: string,
   githubUrl: string,
   githubToken?: string,
-) => {
+): Promise<ProcessingResult> => {
+  // Input validation
+  if (!projectId || typeof projectId !== "string") {
+    throw new ValidationError(
+      "Project ID is required and must be a string",
+      "projectId",
+    );
+  }
+
   console.log(`Starting indexing for repository: ${githubUrl}`);
 
+  // Initialize job tracking
+  const job: ProcessingJob = {
+    projectId,
+    status: "processing",
+    progress: { current: 0, total: 0, phase: "loading" },
+    startedAt: new Date(),
+  };
+  processingQueue.set(projectId, job);
+
   try {
-    // Load repository files
+    // Load repository files with enhanced error handling
+    updateJobProgress(projectId, { phase: "loading" });
     const docs = await loadGithubRepo(githubUrl, githubToken);
     console.log(`\nLoaded ${docs.length} files from repository`);
 
-    // Generate embeddings in batches
-    const allEmbeddings = await generateEmbeddings(docs);
-    const validEmbeddings = allEmbeddings.filter((e) => e !== null);
+    updateJobProgress(projectId, { total: docs.length, phase: "processing" });
+
+    // Generate embeddings with adaptive batching and progress tracking
+    const embeddingResult = await generateEmbeddings(docs, projectId);
+    const { successful: validEmbeddings, failed: failedEmbeddings } =
+      embeddingResult;
 
     console.log(`\nProcessing completed:`);
     console.log(`- Total files: ${docs.length}`);
     console.log(`- Successfully processed: ${validEmbeddings.length}`);
-    console.log(`- Failed: ${docs.length - validEmbeddings.length}`);
+    console.log(`- Failed: ${failedEmbeddings.length}`);
 
-    // Save to database in batches
+    if (validEmbeddings.length === 0) {
+      throw new EmbeddingGenerationError(
+        "No files were successfully processed. Unable to create embeddings for any file in the repository.",
+      );
+    }
+
+    // Save to database with adaptive batching
     console.log("\nSaving to database...");
-    let savedCount = 0;
-    const SAVE_BATCH_SIZE = 10;
+    updateJobProgress(projectId, {
+      current: 0,
+      total: validEmbeddings.length,
+      phase: "saving",
+    });
 
-    for (let i = 0; i < validEmbeddings.length; i += SAVE_BATCH_SIZE) {
-      const batch = validEmbeddings.slice(i, i + SAVE_BATCH_SIZE);
+    let savedCount = 0;
+    const dbErrors: Array<{ fileName: string; error: string }> = [];
+
+    // Adaptive save batch size based on total embeddings
+    const saveBatchSize = Math.min(
+      validEmbeddings.length <= 50
+        ? 15
+        : validEmbeddings.length <= 200
+          ? 20
+          : 25,
+      validEmbeddings.length,
+    );
+
+    for (let i = 0; i < validEmbeddings.length; i += saveBatchSize) {
+      const batch = validEmbeddings.slice(i, i + saveBatchSize);
       console.log(
-        `\nSaving batch ${Math.floor(i / SAVE_BATCH_SIZE) + 1} of ${Math.ceil(validEmbeddings.length / SAVE_BATCH_SIZE)}`,
+        `\nSaving batch ${Math.floor(i / saveBatchSize) + 1} of ${Math.ceil(validEmbeddings.length / saveBatchSize)}`,
       );
 
       await Promise.all(
         batch.map(async (embedding) => {
-          try {
-            const sourceCodeEmbedding = await db.sourceCodeEmbedding.create({
-              data: {
-                sourceCode: embedding.sourceCode,
-                fileName: embedding.fileName,
-                summary: embedding.summary,
-                projectId,
-              },
-            });
+          return await withRetry(
+            async () => {
+              try {
+                const sourceCodeEmbedding = await db.sourceCodeEmbedding.create(
+                  {
+                    data: {
+                      sourceCode: embedding.sourceCode,
+                      fileName: embedding.fileName,
+                      summary: embedding.summary,
+                      projectId,
+                    },
+                  },
+                );
 
-            await db.$executeRaw`UPDATE "SourceCodeEmbedding" SET "summaryEmbedding" = ${embedding.embedding}::vector WHERE "id" = ${sourceCodeEmbedding.id}`;
-            savedCount++;
-            console.log(
-              `✅ Saved ${embedding.fileName} (${savedCount}/${validEmbeddings.length})`,
-            );
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            console.error(
-              `❌ Failed to save ${embedding.fileName}:`,
-              errorMessage,
-            );
-          }
+                await db.$executeRaw`UPDATE "SourceCodeEmbedding" SET "summaryEmbedding" = ${embedding.embedding}::vector WHERE "id" = ${sourceCodeEmbedding.id}`;
+                savedCount++;
+
+                updateJobProgress(projectId, { current: savedCount });
+                console.log(
+                  `✅ Saved ${embedding.fileName} (${savedCount}/${validEmbeddings.length})`,
+                );
+              } catch (error) {
+                const errorMessage =
+                  error instanceof Error ? error.message : String(error);
+                dbErrors.push({
+                  fileName: embedding.fileName,
+                  error: errorMessage,
+                });
+
+                // Categorize database errors
+                if (
+                  errorMessage.includes("unique constraint") ||
+                  errorMessage.includes("duplicate")
+                ) {
+                  throw new DatabaseError(
+                    `Duplicate entry for ${embedding.fileName}`,
+                    "create",
+                    error instanceof Error ? error : undefined,
+                  );
+                } else if (
+                  errorMessage.includes("connection") ||
+                  errorMessage.includes("timeout")
+                ) {
+                  throw new DatabaseError(
+                    `Database connection issue while saving ${embedding.fileName}`,
+                    "create",
+                    error instanceof Error ? error : undefined,
+                  );
+                } else {
+                  throw new DatabaseError(
+                    `Failed to save ${embedding.fileName}: ${errorMessage}`,
+                    "create",
+                    error instanceof Error ? error : undefined,
+                  );
+                }
+              }
+            },
+            2,
+            1000,
+          ); // 2 retries for database operations
         }),
       );
 
-      // Add delay between save batches if not the last batch
-      if (i + SAVE_BATCH_SIZE < validEmbeddings.length) {
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Shorter delay for database operations
+      if (i + saveBatchSize < validEmbeddings.length) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     }
+
+    // Update job completion status
+    const completedJob = processingQueue.get(projectId);
+    if (completedJob) {
+      completedJob.status = "completed";
+      completedJob.completedAt = new Date();
+      processingQueue.set(projectId, completedJob);
+    }
+
+    const processingTimeMs = Date.now() - job.startedAt.getTime();
 
     console.log(`\nIndexing completed:`);
     console.log(`- Total files saved: ${savedCount}`);
     console.log(`- Failed to save: ${validEmbeddings.length - savedCount}`);
+    console.log(`- Processing time: ${processingTimeMs}ms`);
+
+    // Log database errors if any occurred
+    if (dbErrors.length > 0) {
+      console.warn("\nDatabase save errors:");
+      dbErrors.forEach(({ fileName, error }) => {
+        console.warn(`  - ${fileName}: ${error}`);
+      });
+    }
+
+    return {
+      successful: validEmbeddings.slice(0, savedCount), // Only successfully saved embeddings
+      failed: [...failedEmbeddings, ...dbErrors], // Combine processing and database errors
+      stats: {
+        totalFiles: docs.length,
+        successCount: savedCount,
+        failureCount: docs.length - savedCount,
+        processingTimeMs,
+      },
+    };
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Error during indexing:", errorMessage);
-    throw error;
+    const processingTimeMs = Date.now() - job.startedAt.getTime();
+    let finalError: Error;
+
+    // Enhanced error categorization
+    if (
+      error instanceof ValidationError ||
+      error instanceof RepositoryLoadError ||
+      error instanceof EmbeddingGenerationError ||
+      error instanceof DatabaseError ||
+      error instanceof RateLimitError ||
+      error instanceof APIError
+    ) {
+      finalError = error; // Keep our custom errors
+    } else {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      finalError = new Error(`Indexing failed: ${errorMessage}`);
+    }
+
+    // Update job error status
+    const failedJob = processingQueue.get(projectId);
+    if (failedJob) {
+      failedJob.status = "failed";
+      failedJob.error = finalError.message;
+      failedJob.completedAt = new Date();
+      processingQueue.set(projectId, failedJob);
+    }
+
+    console.error(
+      `Error during indexing (${processingTimeMs}ms):`,
+      finalError.message,
+    );
+    throw finalError;
   }
 };
 

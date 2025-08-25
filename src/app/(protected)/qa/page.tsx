@@ -19,11 +19,12 @@ import { Separator } from "~/components/ui/separator";
 
 function QaPage() {
   const { projectId } = useProject();
-  const { data: questions } = api.project.getQuestions.useQuery({
+  const { data: questionsResponse } = api.project.getQuestions.useQuery({
     projectId,
   });
+  const questions = questionsResponse?.questions || [];
   const [questionIndex, setQuestionIndex] = useState(0);
-  const question = questions?.[questionIndex];
+  const question = questions[questionIndex];
 
   const getCleanDescription = (markdown: string) => {
     // Remove code blocks
@@ -111,7 +112,7 @@ function QaPage() {
                       Answer
                     </h3>
                     <div className="prose prose-sm dark:prose-invert max-w-none">
-                      <MDEditor.Markdown source={question.answer}/>
+                      <MDEditor.Markdown source={question.answer} />
                     </div>
                   </div>
 

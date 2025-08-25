@@ -1,16 +1,30 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { Document } from "@langchain/core/documents";
 
-if (!process.env.GEMINI_API_KEY) {
-  throw new Error("GEMINI_API_KEY is not defined");
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY environment variable is required");
 }
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-thinking-exp-01-21",
-});
+// FREE TIER optimization - Best models available for free
+const getModel = (task: "summarize" | "commit" | "qa" | "complex") => {
+  switch (task) {
+    case "summarize":
+    case "commit":
+      // Use 2.0 Flash-Lite for bulk processing (FREE + highest rate limits)
+      return genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+    case "qa":
+    case "complex":
+      // Use 2.0 Flash for complex reasoning (FREE + better performance)
+      return genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    default:
+      return genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+  }
+};
 
 export const aiSummariseCommit = async (diff: string) => {
+  const model = getModel("commit"); // Use Flash-Lite for cost savings
   const response = await model.generateContent([
     `You are an expert programmer, and you are trying to summarize a git diff.
 Reminders about the git diff format:
@@ -47,6 +61,7 @@ export async function summariseCode(doc: Document) {
   console.log("Get Summary", doc.metadata.source);
 
   try {
+    const model = getModel("summarize"); // Use Flash-Lite for bulk processing
     const code = doc.pageContent.slice(0, 10000);
     const response = await model.generateContent([
       `You are an intelligent senior engineer who specialises in onboarding junior engineers onto project`,
@@ -60,8 +75,15 @@ export async function summariseCode(doc: Document) {
 
     return response.response.text();
   } catch (error) {
-    return '';
+    return "";
   }
+}
+
+// Q&A function using Flash for better reasoning
+export async function generateQAResponse(prompt: string) {
+  const model = getModel("qa"); // Use Flash for complex reasoning
+  const response = await model.generateContent([prompt]);
+  return response.response.text();
 }
 
 export async function generateEmbedding(summary: string) {
