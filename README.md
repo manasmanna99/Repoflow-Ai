@@ -26,7 +26,7 @@ Follow these steps to set up and run the project locally:
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/mrinal-mann/RepoFlow-Ai
+   git clone https://github.com/manasmanna99/Repoflow-Ai.git
    cd repoflow-ai
    ```
 
@@ -75,11 +75,3 @@ Contributions are welcome! Please follow these steps:
 2. Create a new branch for your feature or bug fix.
 3. Commit your changes and push them to your fork.
 4. Submit a pull request.
-
-## License
-
-This project is licensed under the [MIT License](LICENSE).
-
-## Contact
-
-For questions or support, please reach out to [mrinalmann2004@gmail.com] or open an issue on GitHub.
